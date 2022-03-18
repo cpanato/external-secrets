@@ -17,6 +17,7 @@ package main
 import (
 	"flag"
 	"os"
+	"sync"
 	"time"
 
 	"go.uber.org/zap/zapcore"
@@ -73,7 +74,7 @@ func main() {
 	}
 	logger := zap.New(zap.Level(lvl))
 	ctrl.SetLogger(logger)
-
+	mu := sync.Mutex{}
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
@@ -103,6 +104,7 @@ func main() {
 		Scheme:          mgr.GetScheme(),
 		ControllerClass: controllerClass,
 		RequeueInterval: storeRequeueInterval,
+		RdyMu:           &mu,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, errCreateController, "controller", "SecretStore")
 		os.Exit(1)
@@ -113,6 +115,7 @@ func main() {
 		Scheme:          mgr.GetScheme(),
 		ControllerClass: controllerClass,
 		RequeueInterval: storeRequeueInterval,
+		RdyMu:           &mu,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, errCreateController, "controller", "ClusterSecretStore")
 		os.Exit(1)
@@ -123,6 +126,7 @@ func main() {
 		Scheme:          mgr.GetScheme(),
 		ControllerClass: controllerClass,
 		RequeueInterval: time.Hour,
+		RdyMu:           &mu,
 	}).SetupWithManager(mgr, controller.Options{
 		MaxConcurrentReconciles: concurrent,
 	}); err != nil {
